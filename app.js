@@ -11,9 +11,8 @@ var events        = require('events'),
             channel: 'musicti_client'
         },
         playList: {
-            currentTrack: {},
-            nextTrack: {},
-            previousTrack: {},
+            currentTrack: null,
+            previousTrack: null,
             tracks: []
         },
 
@@ -50,8 +49,6 @@ var events        = require('events'),
             channel.bind('next', function(){
                 // Emit a next track event
                 eventEmitter.emit('next');
-
-                server.trigger('musicti_notification', 'next_track', Musicti.getNextTrack());
 
                 // Log next event
                 Musicti.log('next track event fired')
@@ -111,12 +108,17 @@ var events        = require('events'),
             return Musicti.playList.currentTrack;
         },
         /**
-         * Set next Track
+         * Add a Track to running playlist
          *
          * @param track
          */
-        setNextTrack: function(track) {
-            Musicti.playList.nextTrack = track;
+        addTrackToPlayList: function(track) {
+            if(Musicti.playList.tracks.indexOf(track) == -1)
+            {
+                Musicti.playList.tracks.push(track);
+            }else{
+                Musicti.log('cannot add a duplicate track to playlist');
+            }
         },
         /**
          * Get next Track
@@ -124,7 +126,12 @@ var events        = require('events'),
          * @returns {*}
          */
         getNextTrack: function() {
-            return Musicti.playList.nextTrack;
+            if(Musicti.playList.tracks.length > 0)
+            {
+                return Musicti.playList.tracks.pop();
+            }
+
+            return null;
         },
         /**
          * Set previous Track
@@ -168,9 +175,14 @@ Spotify.on({
         eventEmitter.on('next', function() {
             // Make sure we have another track to play after our current one
             var nextTrack = Musicti.getNextTrack();
-            if(typeof nextTrack !== 'undefined') {
+            if(nextTrack !== null) {
                 // Emit a play track event
                 eventEmitter.emit('play', nextTrack);
+            }else{
+                // Emit an empty playlist event
+                eventEmitter.emit('empty_playlist');
+
+                Musicti.log('Nothing else to play');
             }
         });
 
@@ -180,7 +192,7 @@ Spotify.on({
 
             if(typeof track !== 'undefined')
             {
-                Musicti.setNextTrack(t);
+                Musicti.addTrackToPlayList(t);
             }else{
                 Musicti.log('invalid track');
             }
